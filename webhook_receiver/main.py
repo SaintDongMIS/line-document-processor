@@ -2,7 +2,7 @@ import os
 import requests
 import json
 import logging
-from datetime import datetime
+from datetime import datetime, timedelta
 from flask import Flask, request, abort
 from dotenv import load_dotenv
 from pathlib import Path
@@ -541,12 +541,12 @@ def upload_to_cloud_storage(file_path, file_name, content_type=None):
         # 上傳檔案
         blob.upload_from_filename(file_path)
         
-        # 取得公開 URL
-        blob.make_public()
-        public_url = blob.public_url
+        # 返回檔案路徑
+        gcs_path = f"gs://{BUCKET_NAME}/{storage_path}"
         
-        print(f"✅ 檔案已上傳到 Cloud Storage: {public_url}")
-        return public_url
+        print(f"✅ 檔案已上傳到 Cloud Storage")
+        print(f"📂 檔案路徑: {gcs_path}")
+        return gcs_path
         
     except Exception as e:
         print(f"❌ 上傳到 Cloud Storage 失敗: {e}")
