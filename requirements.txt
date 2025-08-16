@@ -1,0 +1,15 @@
+# Web Framework
+Flask==2.3.3
+functions-framework==3.4.0
+
+# GCP Services (基本功能)
+google-cloud-storage==2.10.0
+
+# API Requests
+requests==2.31.0
+
+# Environment Variables
+python-dotenv==1.0.0
+
+# Utilities
+python-dateutil==2.8.2
