@@ -169,7 +169,22 @@ def handle_file_message(event):
         
         # 階段 3：下載完成後用 push message 回覆結果
         if downloaded_file:
-            result_message = f"✅ 檔案下載成功！\n📁 檔案名稱: {file_name}\n💾 檔案大小: {file_size} bytes\n📂 儲存位置: {downloaded_file}"
+            # 處理新的回傳格式
+            if isinstance(downloaded_file, dict):
+                file_path = downloaded_file['file_path']
+                content_type = downloaded_file.get('content_type', '')
+            else:
+                # 向後相容舊格式
+                file_path = downloaded_file
+                content_type = ''
+            
+            # 上傳到 Cloud Storage
+            cloud_url = upload_to_cloud_storage(file_path, file_name, content_type)
+            
+            if cloud_url:
+                result_message = f"✅ 檔案下載成功！\n📁 檔案名稱: {file_name}\n💾 檔案大小: {file_size} bytes\n☁️ 雲端儲存: {cloud_url}"
+            else:
+                result_message = f"✅ 檔案下載成功！\n📁 檔案名稱: {file_name}\n💾 檔案大小: {file_size} bytes\n📂 本地儲存: {file_path}\n⚠️ 雲端上傳失敗"
         else:
             result_message = f"❌ 檔案下載失敗: {file_name}\n請檢查檔案是否仍在 LINE 中可用"
             
@@ -271,6 +286,10 @@ def download_line_file(message_id, file_name):
         print(f"回應狀態碼: {response.status_code}")
         print(f"回應標頭: {dict(response.headers)}")
         
+        # 取得內容類型
+        content_type = response.headers.get('content-type', '')
+        print(f"📄 內容類型: {content_type}")
+        
         if response.status_code == 200:
             # 建立桌面下載目錄
             desktop_path = os.path.expanduser("~/Desktop")
@@ -290,7 +309,10 @@ def download_line_file(message_id, file_name):
             if os.path.exists(file_path) and os.path.getsize(file_path) > 0:
                 print(f"✅ 檔案已儲存: {file_path}")
                 print(f"檔案大小: {os.path.getsize(file_path)} bytes")
-                return file_path
+                return {
+                    'file_path': file_path,
+                    'content_type': content_type
+                }
             else:
                 print(f"❌ 檔案寫入失敗或檔案為空")
                 return None
@@ -467,7 +489,34 @@ def push_message_to_user(user_id, message):
     except Exception as e:
         print(f"push message 發送失敗: {e}")
 
-def upload_to_cloud_storage(file_path, file_name):
+def get_file_type(file_name, content_type=None):
+    """根據檔案名稱和內容類型判斷檔案類型"""
+    # 從檔案名稱取得副檔名
+    file_extension = os.path.splitext(file_name)[1].lower()
+    
+    # 檔案類型分類
+    if file_extension in ['.jpg', '.jpeg', '.png', '.gif', '.bmp', '.webp']:
+        return 'images'
+    elif file_extension in ['.pdf']:
+        return 'documents'
+    elif file_extension in ['.doc', '.docx']:
+        return 'documents'
+    elif file_extension in ['.xls', '.xlsx']:
+        return 'spreadsheets'
+    elif file_extension in ['.ppt', '.pptx']:
+        return 'presentations'
+    elif file_extension in ['.txt', '.md']:
+        return 'text'
+    elif file_extension in ['.zip', '.rar', '.7z']:
+        return 'archives'
+    elif file_extension in ['.mp4', '.avi', '.mov', '.wmv']:
+        return 'videos'
+    elif file_extension in ['.mp3', '.wav', '.flac']:
+        return 'audio'
+    else:
+        return 'others'
+
+def upload_to_cloud_storage(file_path, file_name, content_type=None):
     """上傳檔案到 Cloud Storage"""
     # 本地環境跳過 Cloud Storage 上傳
     if ENVIRONMENT == 'local':
@@ -479,8 +528,15 @@ def upload_to_cloud_storage(file_path, file_name):
         storage_client = storage.Client()
         bucket = storage_client.bucket(BUCKET_NAME)
         
+        # 根據檔案類型決定儲存路徑
+        file_type = get_file_type(file_name, content_type)
+        storage_path = f"line-{file_type}/{file_name}"
+        
+        print(f"📁 檔案類型: {file_type}")
+        print(f"📂 儲存路徑: {storage_path}")
+        
         # 建立 blob 物件
-        blob = bucket.blob(f"line-images/{file_name}")
+        blob = bucket.blob(storage_path)
         
         # 上傳檔案
         blob.upload_from_filename(file_path)
