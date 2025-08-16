@@ -30,6 +30,8 @@ ENV/
 .env
 .env.local
 env.production
+.env.yaml
+*.env.yaml
 
 # IDE
 .vscode/

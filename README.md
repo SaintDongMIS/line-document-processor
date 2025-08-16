@@ -2,24 +2,76 @@
 
 這是一個基於 Google Cloud Platform (GCP) 的統一文件處理系統，能夠從 LINE 接收文件、使用 Document AI 進行智慧分析，並將結果存入資料庫。
 
+## 🎯 專案目標與規劃
+
+### 已完成功能 ✅
+
+- **本地端 LINE Webhook 接收器**：成功實作圖片下載功能
+- **圖片處理**：支援 jpg、png、gif 等格式
+- **即時回覆**：自動回報下載狀態給用戶
+- **檔案管理**：自動命名並儲存到本地桌面
+
+### 下一步規劃 🚀
+
+1. **Cloud Function 部署**：將本地 webhook 部署到 GCP Cloud Functions
+2. **Cloud Storage 整合**：將下載的檔案儲存到 GCS 而不是本地
+3. **Document AI 處理**：加入文件內容分析功能
+4. **資料庫儲存**：將處理結果存入 Cloud SQL
+5. **完整通知系統**：透過 LINE 回傳處理結果
+
+### 技術架構演進
+
+```
+階段 1: 本地開發 ✅
+LINE Webhook → Flask Server → 本地檔案儲存
+
+階段 2: Cloud Function (進行中)
+LINE Webhook → Cloud Function → Cloud Storage
+
+階段 3: 完整系統 (規劃中)
+LINE Webhook → Cloud Function → Cloud Storage → Document AI → Cloud SQL → LINE 通知
+```
+
 ## 專案架構
+
+### 當前架構 (階段 1 - 本地開發)
 
 ```
 line-document-processor/
 ├── .gitignore                 # Git 忽略檔案
-├── env.example                # 環境變數範本檔
+├── .env.local                 # 本地環境變數 (已加入 .gitignore)
+├── .env.example               # 環境變數範本檔
 ├── requirements.txt           # 專案依賴檔
 ├── README.md                  # 專案說明文件
 │
-├── webhook_receiver/          # LINE Webhook 接收器
+├── webhook_receiver/          # LINE Webhook 接收器 (本地 Flask)
 │   └── main.py               # 接收 LINE Webhook 的主程式
 │
-├── document_processor/        # 文件處理器
+├── document_processor/        # 文件處理器 (預留)
 │   └── main.py               # Document AI 處理主程式
 │
 └── local_test/               # 本地測試工具
     ├── test_webhook.py       # LINE Webhook 測試腳本
-    └── sample_event.json     # GCS 觸發事件模擬資料
+    └── sample_event.json     # 測試事件模擬資料
+```
+
+### 目標架構 (階段 2 - Cloud Function)
+
+```
+line-document-processor/
+├── webhook_receiver/          # Cloud Function #1: LINE Webhook 接收器
+│   ├── main.py               # Cloud Function 入口點
+│   ├── requirements.txt      # Cloud Function 依賴
+│   ├── .env.yaml            # Cloud Function 環境變數 (已加入 .gitignore)
+│   └── .env.yaml.example    # 環境變數範本
+│
+├── document_processor/        # Cloud Function #2: 文件處理器
+│   ├── main.py               # Document AI 處理主程式
+│   ├── requirements.txt      # Cloud Function 依賴
+│   ├── .env.yaml            # Cloud Function 環境變數 (已加入 .gitignore)
+│   └── .env.yaml.example    # 環境變數範本
+│
+└── local_test/               # 本地測試工具 (保留)
 ```
 
 ## 功能特色
@@ -100,26 +152,64 @@ python document_processor/main.py
 
 ## 部署到 GCP
 
-### 1. 部署 Webhook 接收器
+### 階段 2: Cloud Function 部署準備
+
+#### 1. GCP 專案設定
+
+```bash
+# 設定 GCP 專案
+gcloud config set project YOUR_PROJECT_ID
+
+# 啟用必要的 API
+gcloud services enable cloudfunctions.googleapis.com
+gcloud services enable cloudbuild.googleapis.com
+gcloud services enable storage.googleapis.com
+```
+
+#### 2. 準備 Cloud Function 檔案
+
+```bash
+# 為 webhook_receiver 建立 Cloud Function 專用檔案
+cd webhook_receiver
+
+# 複製環境變數範本並填入實際值
+cp .env.yaml.example .env.yaml
+# 編輯 .env.yaml 填入您的 LINE Bot 設定
+```
+
+#### 3. 部署 Webhook 接收器
 
 ```bash
 # 部署到 Cloud Functions
 gcloud functions deploy line-webhook-receiver \
-  --runtime python39 \
+  --runtime python311 \
   --trigger-http \
   --allow-unauthenticated \
   --source webhook_receiver \
-  --entry-point line_webhook
+  --entry-point line_webhook \
+  --env-vars-file webhook_receiver/.env.yaml
 ```
 
-### 2. 部署文件處理器
+#### 4. 設定 LINE Webhook URL
 
 ```bash
-# 部署到 Cloud Functions (觸發器)
+# 取得 Cloud Function URL
+gcloud functions describe line-webhook-receiver --format="value(httpsTrigger.url)"
+
+# 將此 URL 設定到 LINE Developers Console 的 Webhook URL
+```
+
+### 階段 3: Cloud Storage 整合 (後續)
+
+```bash
+# 建立 Cloud Storage bucket
+gsutil mb gs://YOUR_BUCKET_NAME
+
+# 部署文件處理器 (觸發器)
 gcloud functions deploy document-processor \
-  --runtime python39 \
+  --runtime python311 \
   --trigger-event google.storage.object.finalize \
-  --trigger-resource raw-invoices \
+  --trigger-resource YOUR_BUCKET_NAME \
   --source document_processor \
   --entry-point process_document
 ```

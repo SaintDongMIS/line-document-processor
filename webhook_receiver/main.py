@@ -69,16 +69,20 @@ if LINE_GROUP_ID_TEMP:
 if LINE_GROUP_ID_PATROL:
     print(f"✅ PATROL 群組 ID: {LINE_GROUP_ID_PATROL}")
 
-@app.route("/", methods=['POST'])
-def line_webhook():
-    """接收 LINE Webhook 的主要端點"""
+def line_webhook_handler(request):
+    """處理 LINE Webhook 請求 (適用於 Flask 和 Cloud Function)"""
     try:
         # 取得原始請求資料
-        data = request.get_json()
+        if hasattr(request, 'get_json'):
+            # Flask 請求
+            data = request.get_json()
+        else:
+            # Cloud Function 請求
+            data = request.get_json()
         
         if not data:
             print("收到空的請求資料")
-            return 'OK', 200
+            return ('OK', 200)
         
         print(f"收到 LINE Webhook: {json.dumps(data, indent=2, ensure_ascii=False)}")
         
@@ -96,11 +100,16 @@ def line_webhook():
             else:
                 print(f"未處理的事件類型: {event_type}")
         
-        return 'OK', 200
+        return ('OK', 200)
         
     except Exception as e:
         print(f"處理 Webhook 時發生錯誤: {e}")
-        return 'Error', 500
+        return ('Error', 500)
+
+@app.route("/", methods=['POST'])
+def line_webhook():
+    """接收 LINE Webhook 的主要端點 (Flask 路由)"""
+    return line_webhook_handler(request)
 
 def handle_message_event(event):
     """處理訊息事件"""
@@ -448,7 +457,7 @@ def health_check():
     return {'status': 'healthy', 'service': 'line-webhook-receiver'}, 200
 
 if __name__ == "__main__":
-    # 讓您可以在本地端直接執行 `python webhook_receiver/main.py` 來啟動測試伺服器
+    # 本地開發模式
     port = int(os.environ.get('PORT', 8080))
     debug = os.environ.get('DEBUG', 'False').lower() == 'true'
     
