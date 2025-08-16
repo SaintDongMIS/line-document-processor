@@ -7,17 +7,21 @@
 ### 已完成功能 ✅
 
 - **本地端 LINE Webhook 接收器**：成功實作圖片下載功能
+- **Cloud Function 部署**：成功部署到 GCP Cloud Functions
+- **Cloud Storage 整合**：自動將檔案上傳到 Google Cloud Storage
+- **智慧檔案分類**：根據檔案類型自動分類儲存（line-images/、line-documents/、line-spreadsheets/ 等）
+- **混合模式支援**：同時支援本地開發和 GCP 部署
 - **圖片處理**：支援 jpg、png、gif 等格式
+- **文件處理**：支援 PDF、Word、Excel 等格式
 - **即時回覆**：自動回報下載狀態給用戶
-- **檔案管理**：自動命名並儲存到本地桌面
+- **檔案管理**：自動命名並儲存到本地桌面或雲端
 
 ### 下一步規劃 🚀
 
-1. **Cloud Function 部署**：將本地 webhook 部署到 GCP Cloud Functions
-2. **Cloud Storage 整合**：將下載的檔案儲存到 GCS 而不是本地
-3. **Document AI 處理**：加入文件內容分析功能
-4. **資料庫儲存**：將處理結果存入 Cloud SQL
-5. **完整通知系統**：透過 LINE 回傳處理結果
+1. **Document AI 整合**：加入文件內容分析功能
+2. **資料庫儲存**：將處理結果存入 Cloud SQL
+3. **完整通知系統**：透過 LINE 回傳處理結果
+4. **檔案處理觸發器**：Cloud Storage 事件觸發文件處理
 
 ### 技術架構演進
 
@@ -25,8 +29,8 @@
 階段 1: 本地開發 ✅
 LINE Webhook → Flask Server → 本地檔案儲存
 
-階段 2: Cloud Function (進行中)
-LINE Webhook → Cloud Function → Cloud Storage
+階段 2: Cloud Function + Cloud Storage ✅
+LINE Webhook → Cloud Function → Cloud Storage (智慧分類)
 
 階段 3: 完整系統 (規劃中)
 LINE Webhook → Cloud Function → Cloud Storage → Document AI → Cloud SQL → LINE 通知
@@ -34,7 +38,7 @@ LINE Webhook → Cloud Function → Cloud Storage → Document AI → Cloud SQL 
 
 ## 專案架構
 
-### 當前架構 (階段 1 - 本地開發)
+### 當前架構 (階段 2 - Cloud Function + Cloud Storage)
 
 ```
 line-document-processor/
@@ -43,32 +47,40 @@ line-document-processor/
 ├── .env.example               # 環境變數範本檔
 ├── requirements.txt           # 專案依賴檔
 ├── README.md                  # 專案說明文件
+├── deploy_webhook.sh          # Cloud Function 部署腳本
 │
-├── webhook_receiver/          # LINE Webhook 接收器 (本地 Flask)
-│   └── main.py               # 接收 LINE Webhook 的主程式
+├── webhook_receiver/          # Cloud Function #1: LINE Webhook 接收器
+│   ├── main.py               # Cloud Function 入口點 (支援混合模式)
+│   ├── requirements.txt      # Cloud Function 依賴
+│   ├── .env.yaml            # Cloud Function 環境變數 (已加入 .gitignore)
+│   └── .env.yaml.example    # 環境變數範本
 │
-├── document_processor/        # 文件處理器 (預留)
+├── document_processor/        # Cloud Function #2: 文件處理器 (預留)
 │   └── main.py               # Document AI 處理主程式
+│
+├── scripts/                   # 部署和設定腳本
+│   ├── gcp_config_safe.sh    # GCP 配置管理腳本
+│   └── gcp_config.example.sh # 配置範本
 │
 └── local_test/               # 本地測試工具
     ├── test_webhook.py       # LINE Webhook 測試腳本
     └── sample_event.json     # 測試事件模擬資料
 ```
 
-### 目標架構 (階段 2 - Cloud Function)
+### 目標架構 (階段 3 - 完整系統)
 
 ```
 line-document-processor/
-├── webhook_receiver/          # Cloud Function #1: LINE Webhook 接收器
+├── webhook_receiver/          # Cloud Function #1: LINE Webhook 接收器 ✅
 │   ├── main.py               # Cloud Function 入口點
 │   ├── requirements.txt      # Cloud Function 依賴
-│   ├── .env.yaml            # Cloud Function 環境變數 (已加入 .gitignore)
+│   ├── .env.yaml            # Cloud Function 環境變數
 │   └── .env.yaml.example    # 環境變數範本
 │
-├── document_processor/        # Cloud Function #2: 文件處理器
+├── document_processor/        # Cloud Function #2: 文件處理器 (開發中)
 │   ├── main.py               # Document AI 處理主程式
 │   ├── requirements.txt      # Cloud Function 依賴
-│   ├── .env.yaml            # Cloud Function 環境變數 (已加入 .gitignore)
+│   ├── .env.yaml            # Cloud Function 環境變數
 │   └── .env.yaml.example    # 環境變數範本
 │
 └── local_test/               # 本地測試工具 (保留)
@@ -77,9 +89,17 @@ line-document-processor/
 ## 功能特色
 
 - **LINE 整合**: 自動接收 LINE 用戶上傳的文件
-- **Document AI 處理**: 使用 Google Document AI 進行智慧文件分析
+- **智慧檔案分類**: 根據檔案類型自動分類儲存
+  - `line-images/`: 圖片檔案 (jpg, png, gif, bmp, webp)
+  - `line-documents/`: 文件檔案 (pdf, doc, docx, txt, rtf)
+  - `line-spreadsheets/`: 試算表檔案 (xls, xlsx, csv)
+  - `line-presentations/`: 簡報檔案 (ppt, pptx)
+  - `line-archives/`: 壓縮檔案 (zip, rar, 7z)
+  - `line-others/`: 其他類型檔案
+- **混合模式**: 同時支援本地開發和 GCP 部署
+- **Document AI 處理**: 使用 Google Document AI 進行智慧文件分析 (規劃中)
 - **雲端儲存**: 自動將文件上傳至 Google Cloud Storage
-- **結構化輸出**: 將分析結果轉換為 CSV 和 JSON 格式
+- **結構化輸出**: 將分析結果轉換為 CSV 和 JSON 格式 (規劃中)
 - **本地開發支援**: 完整的本地測試環境
 
 ## 安裝與設定
@@ -104,24 +124,24 @@ pip install -r requirements.txt
 
 ```bash
 # 複製環境變數範本
-cp env.example .env
+cp .env.example .env.local
 
-# 編輯 .env 檔案，填入您的設定
+# 編輯 .env.local 檔案，填入您的設定
 ```
 
 #### 必要的環境變數：
 
 ```bash
-# GCP 專案設定
-GCP_PROJECT="your-gcp-project-id"
-BUCKET_NAME="raw-invoices"
-PROCESSED_BUCKET_NAME="processed-data"
-DOCAI_LOCATION="us"
-DOCAI_PROCESSOR_ID="your-processor-id"
-
 # LINE Bot 設定
 LINE_CHANNEL_ACCESS_TOKEN="your-line-channel-access-token"
 LINE_CHANNEL_SECRET="your-line-channel-secret"
+LINE_CHANNEL_ID="your-line-channel-id"
+
+# Cloud Storage 設定 (Cloud Function 使用)
+BUCKET_NAME="line-document-processor-your-project-id"
+
+# Webhook URL (本地開發時使用 ngrok)
+WEBHOOK_URL="https://your-ngrok-url.ngrok.io"
 ```
 
 ### 3. GCP 本地驗證
@@ -129,6 +149,9 @@ LINE_CHANNEL_SECRET="your-line-channel-secret"
 ```bash
 # 安裝 gcloud CLI 並登入
 gcloud auth application-default login
+
+# 設定 GCP 專案
+gcloud config set project YOUR_PROJECT_ID
 ```
 
 ## 本地開發與測試
@@ -152,7 +175,7 @@ python document_processor/main.py
 
 ## 部署到 GCP
 
-### 階段 2: Cloud Function 部署準備
+### 階段 2: Cloud Function 部署 (已完成)
 
 #### 1. GCP 專案設定
 
@@ -180,7 +203,10 @@ cp .env.yaml.example .env.yaml
 #### 3. 部署 Webhook 接收器
 
 ```bash
-# 部署到 Cloud Functions
+# 使用部署腳本 (推薦)
+./deploy_webhook.sh
+
+# 或手動部署
 gcloud functions deploy line-webhook-receiver \
   --runtime python311 \
   --trigger-http \
@@ -199,7 +225,7 @@ gcloud functions describe line-webhook-receiver --format="value(httpsTrigger.url
 # 將此 URL 設定到 LINE Developers Console 的 Webhook URL
 ```
 
-### 階段 3: Cloud Storage 整合 (後續)
+### 階段 3: Document AI 整合 (規劃中)
 
 ```bash
 # 建立 Cloud Storage bucket
@@ -223,23 +249,43 @@ gcloud functions deploy document-processor \
 
 ### 文件處理器
 
-- 自動觸發：當檔案上傳到 GCS 時自動執行
+- 自動觸發：當檔案上傳到 GCS 時自動執行 (規劃中)
 
 ## 資料流程
 
-1. **LINE 用戶上傳文件** → LINE Bot 接收
-2. **Webhook 接收器** → 下載文件並上傳到 GCS
-3. **GCS 觸發器** → 自動啟動文件處理器
-4. **Document AI** → 分析文件內容
-5. **結果儲存** → 將結構化資料儲存到處理後的 bucket
+1. **LINE 用戶上傳文件** → LINE Bot 接收 ✅
+2. **Webhook 接收器** → 下載文件並上傳到 GCS ✅
+3. **智慧檔案分類** → 根據檔案類型分類儲存 ✅
+4. **GCS 觸發器** → 自動啟動文件處理器 (規劃中)
+5. **Document AI** → 分析文件內容 (規劃中)
+6. **結果儲存** → 將結構化資料儲存到處理後的 bucket (規劃中)
+7. **LINE 通知** → 回傳處理結果給用戶 (規劃中)
 
 ## 支援的檔案格式
 
-- PDF
-- PNG
-- JPEG/JPG
-- TIFF
-- GIF
+### 圖片檔案
+
+- PNG, JPEG/JPG, GIF, BMP, WebP
+
+### 文件檔案
+
+- PDF, DOC, DOCX, TXT, RTF
+
+### 試算表檔案
+
+- XLS, XLSX, CSV
+
+### 簡報檔案
+
+- PPT, PPTX
+
+### 壓縮檔案
+
+- ZIP, RAR, 7Z
+
+### 其他檔案
+
+- 所有其他類型檔案
 
 ## 故障排除
 
@@ -255,16 +301,52 @@ gcloud functions deploy document-processor \
    - 確認 LINE Channel Access Token 是否正確
    - 檢查 Webhook URL 是否可公開存取
 
-3. **Document AI 處理失敗**
-   - 確認 Processor ID 是否正確
-   - 檢查檔案格式是否支援
+3. **Cloud Storage 上傳失敗**
+
+   - 確認 BUCKET_NAME 是否正確
+   - 檢查 Cloud Function 權限設定
+
+4. **檔案分類不正確**
+   - 檢查檔案副檔名是否支援
+   - 確認 `get_file_type()` 函數邏輯
 
 ### 日誌查看
 
 ```bash
 # 查看 Cloud Functions 日誌
 gcloud functions logs read line-webhook-receiver
-gcloud functions logs read document-processor
+
+# 查看即時日誌 (本地開發)
+tail -f webhook_receiver/main.py
+```
+
+### 健康檢查
+
+```bash
+# 測試 Cloud Function 健康狀態
+curl -X GET "https://us-central1-YOUR_PROJECT_ID.cloudfunctions.net/line-webhook-receiver"
+```
+
+## 開發工具
+
+### 本地測試
+
+```bash
+# 啟動 ngrok 隧道
+ngrok http 5000
+
+# 更新 Webhook URL
+sed -i '' 's|WEBHOOK_URL=.*|WEBHOOK_URL="https://your-ngrok-url.ngrok.io"|' .env.local
+```
+
+### GCP 配置管理
+
+```bash
+# 查看當前配置
+gcloud config configurations list
+
+# 切換配置
+gcloud config configurations activate CONFIG_NAME
 ```
 
 ## 貢獻
