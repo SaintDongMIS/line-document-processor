@@ -107,7 +107,7 @@ def line_webhook_handler(request):
         return ('Error', 500)
 
 @app.route("/", methods=['POST'])
-def line_webhook():
+def line_webhook_flask():
     """接收 LINE Webhook 的主要端點 (Flask 路由)"""
     return line_webhook_handler(request)
 
@@ -451,10 +451,26 @@ def push_message_to_user(user_id, message):
     except Exception as e:
         print(f"push message 發送失敗: {e}")
 
+def health_check_handler():
+    """健康檢查處理函數"""
+    return {'status': 'healthy', 'service': 'line-webhook-receiver'}, 200
+
 @app.route("/health", methods=['GET'])
 def health_check():
-    """健康檢查端點"""
-    return {'status': 'healthy', 'service': 'line-webhook-receiver'}, 200
+    """健康檢查端點 (Flask 路由)"""
+    return health_check_handler()
+
+# Cloud Function 入口點
+def line_webhook(request):
+    """Cloud Function 入口點"""
+    # 處理 GET 請求 (健康檢查)
+    if request.method == 'GET':
+        return health_check_handler()
+    # 處理 POST 請求 (LINE Webhook)
+    elif request.method == 'POST':
+        return line_webhook_handler(request)
+    else:
+        return ('Method not allowed', 405)
 
 if __name__ == "__main__":
     # 本地開發模式
