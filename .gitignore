@@ -27,8 +27,8 @@ env/
 ENV/
 
 # Environment Variables
-env
-env.local
+.env
+.env.local
 env.production
 
 # IDE

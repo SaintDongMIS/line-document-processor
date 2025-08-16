@@ -25,13 +25,13 @@ def setup_environment():
     env_name = ""
     if choice == "1":
         env_name = "local"
-        source_file = "env.local.example"
+        source_file = ".env.local.example"
     elif choice == "2":
         env_name = "production"
-        source_file = "env.production.example"
+        source_file = ".env.production.example"
     elif choice == "3":
         env_name = input("請輸入環境名稱: ").strip()
-        source_file = "env.example"
+        source_file = ".env.example"
     else:
         print("❌ 無效的選項")
         return False

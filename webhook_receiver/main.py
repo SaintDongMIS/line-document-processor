@@ -6,10 +6,12 @@ from datetime import datetime
 from flask import Flask, request, abort
 from dotenv import load_dotenv
 from pathlib import Path
+from linebot import LineBotApi
+from linebot.exceptions import LineBotApiError
 
 # 取得專案根目錄並載入環境變數
 project_root = Path(__file__).parent.parent
-env_file = project_root / 'env.local'
+env_file = project_root / '.env.local'
 
 print(f"專案根目錄: {project_root}")
 print(f"環境變數檔案: {env_file}")
@@ -161,6 +163,67 @@ def handle_file_message(event):
         error_message = f"❌ 處理檔案時發生錯誤: {file_name}\n錯誤: {str(e)}"
         push_message_to_user(user_id, error_message)
 
+def download_line_image(message_id):
+    """從 LINE 下載圖片"""
+    try:
+        # 使用 LINE Bot SDK 取得圖片內容（參考網頁教學）
+        line_bot_api = LineBotApi(LINE_CHANNEL_ACCESS_TOKEN)
+        
+        print(f"正在下載圖片: {message_id}")
+        print(f"使用 LINE Bot SDK...")
+        
+        # 使用 get_message_content 方法取得訊息內容
+        message_content = line_bot_api.get_message_content(message_id)
+        
+        print(f"成功取得圖片內容")
+        print(f"內容類型: {message_content.content_type}")
+        print(f"內容大小: {len(message_content.content)} bytes")
+        
+        # 建立桌面下載目錄
+        desktop_path = os.path.expanduser("~/Desktop")
+        download_dir = os.path.join(desktop_path, "LINE_Downloads")
+        os.makedirs(download_dir, exist_ok=True)
+        
+        # 根據內容類型判斷圖片格式
+        content_type = message_content.content_type
+        if 'jpeg' in content_type or 'jpg' in content_type:
+            extension = '.jpg'
+        elif 'png' in content_type:
+            extension = '.png'
+        elif 'gif' in content_type:
+            extension = '.gif'
+        else:
+            extension = '.jpg'  # 預設為 jpg
+        
+        # 儲存圖片（參考網頁教學的寫法）
+        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+        filename = f"LINE_Image_{timestamp}{extension}"
+        file_path = os.path.join(download_dir, filename)
+        
+        # 使用二進位模式寫入檔案
+        with open(file_path, 'wb') as f:
+            f.write(message_content.content)  # 以二進位的方式寫入檔案
+        
+        # 檢查檔案是否成功寫入
+        if os.path.exists(file_path) and os.path.getsize(file_path) > 0:
+            print(f"✅ 圖片已儲存: {file_path}")
+            print(f"圖片大小: {os.path.getsize(file_path)} bytes")
+            return file_path
+        else:
+            print(f"❌ 圖片寫入失敗或檔案為空")
+            return None
+        
+    except LineBotApiError as e:
+        print(f"❌ LINE Bot API 錯誤: {e}")
+        print(f"錯誤狀態碼: {e.status_code}")
+        print(f"錯誤訊息: {e.message}")
+        return None
+    except Exception as e:
+        print(f"❌ 儲存圖片失敗: {e}")
+        import traceback
+        print(f"詳細錯誤: {traceback.format_exc()}")
+        return None
+
 def download_line_file(message_id, file_name):
     """從 LINE 下載檔案"""
     try:
@@ -265,18 +328,39 @@ def download_line_file(message_id, file_name):
     except Exception as e:
         print(f"❌ 儲存檔案失敗: {e}")
         import traceback
-        print(f"詳細錯誤: {traceback.format_exc()}")
+        print(f"详细错误: {traceback.format_exc()}")
         return None
 
 def handle_image_message(event):
     """處理圖片訊息"""
+    message_id = event['message']['id']
     reply_token = event.get('replyToken')
     user_id = event['source'].get('userId')
     
-    print("收到圖片訊息")
+    print(f"收到圖片訊息，ID: {message_id}")
     
-    reply_message = "收到您的圖片，正在處理中..."
-    reply_to_user(reply_token, reply_message, user_id)
+    # 階段 1：立即回覆（使用 reply token）
+    immediate_reply = "📸 開始下載圖片..."
+    reply_to_user(reply_token, immediate_reply, user_id)
+    
+    try:
+        # 階段 2：下載圖片
+        print(f"開始下載圖片 {message_id}...")
+        downloaded_image = download_line_image(message_id)
+        
+        # 階段 3：下載完成後用 push message 回覆結果
+        if downloaded_image:
+            result_message = f"✅ 圖片下載成功！\n📁 檔案名稱: {os.path.basename(downloaded_image)}\n📂 儲存位置: {downloaded_image}"
+        else:
+            result_message = f"❌ 圖片下載失敗\n請檢查圖片是否仍在 LINE 中可用"
+            
+        # 使用 push message 發送結果（因為 reply token 可能已過期）
+        push_message_to_user(user_id, result_message)
+            
+    except Exception as e:
+        print(f"處理圖片時發生錯誤: {e}")
+        error_message = f"❌ 處理圖片時發生錯誤\n錯誤: {str(e)}"
+        push_message_to_user(user_id, error_message)
 
 def handle_follow_event(event):
     """處理加好友事件"""

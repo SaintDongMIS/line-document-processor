@@ -15,26 +15,71 @@ def test_line_webhook():
     """測試 LINE Webhook 接收端"""
     
     # 測試用的 LINE Webhook 事件資料
-    test_event = {
-        "events": [
-            {
-                "type": "message",
-                "message": {
-                    "id": "test-message-id-123",
-                    "type": "file",
-                    "fileName": "test-invoice.pdf",
-                    "fileSize": 1024
-                },
-                "replyToken": "test-reply-token-123",
-                "source": {
-                    "userId": "test-user-id",
-                    "type": "user"
-                },
-                "timestamp": 1234567890
-            }
-        ],
-        "destination": "test-destination"
-    }
+    test_events = [
+        # 測試檔案訊息
+        {
+            "events": [
+                {
+                    "type": "message",
+                    "message": {
+                        "id": "test-message-id-123",
+                        "type": "file",
+                        "fileName": "test-invoice.pdf",
+                        "fileSize": 1024
+                    },
+                    "replyToken": "test-reply-token-123",
+                    "source": {
+                        "userId": "test-user-id",
+                        "type": "user"
+                    },
+                    "timestamp": 1234567890
+                }
+            ],
+            "destination": "test-destination"
+        },
+        # 測試圖片訊息
+        {
+            "events": [
+                {
+                    "type": "message",
+                    "message": {
+                        "id": "test-image-id-456",
+                        "type": "image",
+                        "contentProvider": {
+                            "type": "line"
+                        }
+                    },
+                    "replyToken": "test-reply-token-456",
+                    "source": {
+                        "userId": "test-user-id",
+                        "type": "user"
+                    },
+                    "timestamp": 1234567890
+                }
+            ],
+            "destination": "test-destination"
+        },
+        # 測試文字訊息
+        {
+            "events": [
+                {
+                    "type": "message",
+                    "message": {
+                        "id": "test-text-id-789",
+                        "type": "text",
+                        "text": "測試訊息"
+                    },
+                    "replyToken": "test-reply-token-789",
+                    "source": {
+                        "userId": "test-user-id",
+                        "type": "user"
+                    },
+                    "timestamp": 1234567890
+                }
+            ],
+            "destination": "test-destination"
+        }
+    ]
     
     # 發送請求到本地測試伺服器
     webhook_url = "http://localhost:8080/"
@@ -42,22 +87,27 @@ def test_line_webhook():
     try:
         print("發送測試 Webhook 請求...")
         print(f"目標 URL: {webhook_url}")
-        print(f"測試資料: {json.dumps(test_event, indent=2, ensure_ascii=False)}")
         
-        response = requests.post(
-            webhook_url,
-            json=test_event,
-            headers={'Content-Type': 'application/json'},
-            timeout=30
-        )
-        
-        print(f"\n回應狀態碼: {response.status_code}")
-        print(f"回應內容: {response.text}")
-        
-        if response.status_code == 200:
-            print("✅ Webhook 測試成功！")
-        else:
-            print("❌ Webhook 測試失敗！")
+        # 測試所有類型的事件
+        for i, test_event in enumerate(test_events, 1):
+            event_type = test_event["events"][0]["message"]["type"]
+            print(f"\n--- 測試 {i}: {event_type} 訊息 ---")
+            print(f"測試資料: {json.dumps(test_event, indent=2, ensure_ascii=False)}")
+            
+            response = requests.post(
+                webhook_url,
+                json=test_event,
+                headers={'Content-Type': 'application/json'},
+                timeout=30
+            )
+            
+            print(f"回應狀態碼: {response.status_code}")
+            print(f"回應內容: {response.text}")
+            
+            if response.status_code == 200:
+                print(f"✅ {event_type} 訊息測試成功！")
+            else:
+                print(f"❌ {event_type} 訊息測試失敗！")
             
     except requests.exceptions.ConnectionError:
         print("❌ 無法連接到本地伺服器")
