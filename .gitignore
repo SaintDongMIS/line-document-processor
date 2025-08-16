@@ -33,6 +33,9 @@ env.production
 .env.yaml
 *.env.yaml
 
+# Security: GCP Configuration Scripts
+scripts/gcp_config.sh
+
 # IDE
 .vscode/
 .idea/

@@ -8,6 +8,7 @@ from dotenv import load_dotenv
 from pathlib import Path
 from linebot import LineBotApi
 from linebot.exceptions import LineBotApiError
+from google.cloud import storage
 
 # 取得專案根目錄並載入環境變數
 project_root = Path(__file__).parent.parent
@@ -45,6 +46,14 @@ LINE_GROUP_ID_CURRENT = os.getenv('LINE_GROUP_ID_CURRENT')
 LINE_USER_ID_SAM = os.getenv('LINE_USER_ID_SAM')
 LINE_GROUP_ID_TEMP = os.getenv('LINE_GROUP_ID_TEMP')
 LINE_GROUP_ID_PATROL = os.getenv('LINE_GROUP_ID_PATROL')
+
+# Cloud Storage 設定
+BUCKET_NAME = os.getenv('BUCKET_NAME', 'line-document-processor-annular-welder')
+
+# 環境檢測
+IS_CLOUD_FUNCTION = os.getenv('FUNCTION_TARGET') is not None
+ENVIRONMENT = 'cloud' if IS_CLOUD_FUNCTION else 'local'
+print(f"🌍 當前環境: {ENVIRONMENT}")
 
 # 檢查環境變數是否正確載入
 if not LINE_CHANNEL_ACCESS_TOKEN:
@@ -359,7 +368,14 @@ def handle_image_message(event):
         
         # 階段 3：下載完成後用 push message 回覆結果
         if downloaded_image:
-            result_message = f"✅ 圖片下載成功！\n📁 檔案名稱: {os.path.basename(downloaded_image)}\n📂 儲存位置: {downloaded_image}"
+            # 上傳到 Cloud Storage
+            file_name = os.path.basename(downloaded_image)
+            cloud_url = upload_to_cloud_storage(downloaded_image, file_name)
+            
+            if cloud_url:
+                result_message = f"✅ 圖片下載成功！\n📁 檔案名稱: {file_name}\n☁️ 雲端儲存: {cloud_url}"
+            else:
+                result_message = f"✅ 圖片下載成功！\n📁 檔案名稱: {file_name}\n📂 本地儲存: {downloaded_image}\n⚠️ 雲端上傳失敗"
         else:
             result_message = f"❌ 圖片下載失敗\n請檢查圖片是否仍在 LINE 中可用"
             
@@ -450,6 +466,35 @@ def push_message_to_user(user_id, message):
         
     except Exception as e:
         print(f"push message 發送失敗: {e}")
+
+def upload_to_cloud_storage(file_path, file_name):
+    """上傳檔案到 Cloud Storage"""
+    # 本地環境跳過 Cloud Storage 上傳
+    if ENVIRONMENT == 'local':
+        print(f"🏠 本地環境：跳過 Cloud Storage 上傳")
+        return None
+        
+    try:
+        # 初始化 Cloud Storage 客戶端
+        storage_client = storage.Client()
+        bucket = storage_client.bucket(BUCKET_NAME)
+        
+        # 建立 blob 物件
+        blob = bucket.blob(f"line-images/{file_name}")
+        
+        # 上傳檔案
+        blob.upload_from_filename(file_path)
+        
+        # 取得公開 URL
+        blob.make_public()
+        public_url = blob.public_url
+        
+        print(f"✅ 檔案已上傳到 Cloud Storage: {public_url}")
+        return public_url
+        
+    except Exception as e:
+        print(f"❌ 上傳到 Cloud Storage 失敗: {e}")
+        return None
 
 def health_check_handler():
     """健康檢查處理函數"""

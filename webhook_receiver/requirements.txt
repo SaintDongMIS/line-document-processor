@@ -3,3 +3,4 @@ functions-framework==3.4.0
 line-bot-sdk==3.18.1
 python-dotenv==1.0.0
 requests>=2.32.3
+google-cloud-storage==2.13.0
