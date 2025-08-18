@@ -50,6 +50,10 @@ IS_CLOUD_FUNCTION = os.getenv('FUNCTION_TARGET') is not None
 ENVIRONMENT = 'cloud' if IS_CLOUD_FUNCTION else 'local'
 print(f"🌍 當前環境: {ENVIRONMENT}")
 
+# Bot 回覆設定
+AUTO_REPLY_ENABLED = os.getenv('AUTO_REPLY_ENABLED', 'False').lower() == 'true'
+print(f"🤖 自動回覆模式: {'啟用' if AUTO_REPLY_ENABLED else '停用'}")
+
 # 檢查環境變數是否正確載入
 if not LINE_CHANNEL_ACCESS_TOKEN:
     print("⚠️  警告: LINE_CHANNEL_ACCESS_TOKEN 未設定")
@@ -129,9 +133,12 @@ def handle_text_message(event):
     
     print(f"收到文字訊息: {text}")
     
-    # 簡單的回覆邏輯
-    reply_message = f"收到您的訊息: {text}"
-    reply_to_user(reply_token, reply_message, user_id)
+    # 只在啟用自動回覆時才回覆
+    if AUTO_REPLY_ENABLED:
+        reply_message = f"收到您的訊息: {text}"
+        reply_to_user(reply_token, reply_message, user_id)
+    else:
+        print("🤖 自動回覆已停用，跳過文字訊息回覆")
 
 def handle_file_message(event):
     """處理檔案訊息"""
@@ -144,8 +151,11 @@ def handle_file_message(event):
     print(f"收到檔案: {file_name} (大小: {file_size} bytes)")
     
     # 階段 1：立即回覆（使用 reply token）
-    immediate_reply = f"📥 開始下載檔案：{file_name}"
-    reply_to_user(reply_token, immediate_reply, user_id)
+    if AUTO_REPLY_ENABLED:
+        immediate_reply = f"📥 開始下載檔案：{file_name}"
+        reply_to_user(reply_token, immediate_reply, user_id)
+    else:
+        print("🤖 自動回覆已停用，跳過檔案下載通知")
     
     try:
         # 階段 2：下載檔案
@@ -174,12 +184,18 @@ def handle_file_message(event):
             result_message = f"❌ 檔案下載失敗: {file_name}\n請檢查檔案是否仍在 LINE 中可用"
             
         # 使用 push message 發送結果（因為 reply token 可能已過期）
-        push_message_to_user(user_id, result_message)
+        if AUTO_REPLY_ENABLED:
+            push_message_to_user(user_id, result_message)
+        else:
+            print("🤖 自動回覆已停用，跳過檔案處理結果通知")
             
     except Exception as e:
         print(f"處理檔案時發生錯誤: {e}")
-        error_message = f"❌ 處理檔案時發生錯誤: {file_name}\n錯誤: {str(e)}"
-        push_message_to_user(user_id, error_message)
+        if AUTO_REPLY_ENABLED:
+            error_message = f"❌ 處理檔案時發生錯誤: {file_name}\n錯誤: {str(e)}"
+            push_message_to_user(user_id, error_message)
+        else:
+            print("🤖 自動回覆已停用，跳過錯誤通知")
 
 def download_line_image(message_id):
     """從 LINE 下載圖片"""
@@ -365,8 +381,11 @@ def handle_image_message(event):
     print(f"收到圖片訊息，ID: {message_id}")
     
     # 階段 1：立即回覆（使用 reply token）
-    immediate_reply = "📸 開始下載圖片..."
-    reply_to_user(reply_token, immediate_reply, user_id)
+    if AUTO_REPLY_ENABLED:
+        immediate_reply = "📸 開始下載圖片..."
+        reply_to_user(reply_token, immediate_reply, user_id)
+    else:
+        print("🤖 自動回覆已停用，跳過圖片下載通知")
     
     try:
         # 階段 2：下載圖片
@@ -387,12 +406,18 @@ def handle_image_message(event):
             result_message = f"❌ 圖片下載失敗\n請檢查圖片是否仍在 LINE 中可用"
             
         # 使用 push message 發送結果（因為 reply token 可能已過期）
-        push_message_to_user(user_id, result_message)
+        if AUTO_REPLY_ENABLED:
+            push_message_to_user(user_id, result_message)
+        else:
+            print("🤖 自動回覆已停用，跳過圖片處理結果通知")
             
     except Exception as e:
         print(f"處理圖片時發生錯誤: {e}")
-        error_message = f"❌ 處理圖片時發生錯誤\n錯誤: {str(e)}"
-        push_message_to_user(user_id, error_message)
+        if AUTO_REPLY_ENABLED:
+            error_message = f"❌ 處理圖片時發生錯誤\n錯誤: {str(e)}"
+            push_message_to_user(user_id, error_message)
+        else:
+            print("🤖 自動回覆已停用，跳過錯誤通知")
 
 def handle_follow_event(event):
     """處理加好友事件"""
