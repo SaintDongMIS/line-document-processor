@@ -121,7 +121,7 @@ deploy_function() {
 
 # 取得並顯示 Webhook URL
 get_webhook_url() {
-    local webhook_url=$(gcloud functions describe line-webhook-receiver --format="value(httpsTrigger.url)" 2>/dev/null)
+    local webhook_url=$(gcloud functions describe line-webhook-receiver --region=asia-east1 --format="value(url)" 2>/dev/null)
     
     if [ -z "$webhook_url" ]; then
         print_error "無法取得 Webhook URL"
@@ -146,7 +146,7 @@ get_webhook_url() {
 
 # 顯示後續步驟
 show_next_steps() {
-    local webhook_url=$(gcloud functions describe line-webhook-receiver --format="value(httpsTrigger.url)" 2>/dev/null)
+    local webhook_url=$(gcloud functions describe line-webhook-receiver --region=asia-east1 --format="value(url)" 2>/dev/null)
     
     echo ""
     print_info "📋 後續步驟:"

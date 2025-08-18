@@ -40,12 +40,7 @@ LINE_CHANNEL_SECRET = os.getenv('LINE_CHANNEL_SECRET')
 LINE_CHANNEL_ID = os.getenv('LINE_CHANNEL_ID')
 WEBHOOK_URL = os.getenv('WEBHOOK_URL')
 
-# 用戶和群組 ID 設定
-LINE_USER_ID_CURRENT = os.getenv('LINE_USER_ID_CURRENT')
-LINE_GROUP_ID_CURRENT = os.getenv('LINE_GROUP_ID_CURRENT')
-LINE_USER_ID_SAM = os.getenv('LINE_USER_ID_SAM')
-LINE_GROUP_ID_TEMP = os.getenv('LINE_GROUP_ID_TEMP')
-LINE_GROUP_ID_PATROL = os.getenv('LINE_GROUP_ID_PATROL')
+
 
 # Cloud Storage 設定
 BUCKET_NAME = os.getenv('BUCKET_NAME', 'line-document-processor-annular-welder')
@@ -66,17 +61,7 @@ if not LINE_CHANNEL_SECRET:
 else:
     print(f"✅ LINE Secret 已載入: {LINE_CHANNEL_SECRET[:10]}...")
 
-# 檢查用戶和群組 ID
-if LINE_USER_ID_CURRENT:
-    print(f"✅ 當前用戶 ID: {LINE_USER_ID_CURRENT}")
-if LINE_GROUP_ID_CURRENT:
-    print(f"✅ 當前群組 ID: {LINE_GROUP_ID_CURRENT}")
-if LINE_USER_ID_SAM:
-    print(f"✅ SAM 用戶 ID: {LINE_USER_ID_SAM}")
-if LINE_GROUP_ID_TEMP:
-    print(f"✅ TEMP 群組 ID: {LINE_GROUP_ID_TEMP}")
-if LINE_GROUP_ID_PATROL:
-    print(f"✅ PATROL 群組 ID: {LINE_GROUP_ID_PATROL}")
+
 
 def line_webhook_handler(request):
     """處理 LINE Webhook 請求 (適用於 Flask 和 Cloud Function)"""

@@ -15,6 +15,8 @@
 - **文件處理**：支援 PDF、Word、Excel 等格式
 - **即時回覆**：自動回報下載狀態給用戶
 - **檔案管理**：自動命名並儲存到本地桌面或雲端
+- **程式碼優化**：移除無用的用戶和群組 ID 設定，簡化環境變數
+- **部署腳本修復**：修復 Webhook URL 取得問題，完善部署流程
 
 ### 下一步規劃 🚀
 
@@ -44,23 +46,23 @@ LINE Webhook → Cloud Function → Cloud Storage → Document AI → Cloud SQL 
 line-document-processor/
 ├── .gitignore                 # Git 忽略檔案
 ├── .env.local                 # 本地環境變數 (已加入 .gitignore)
-├── .env.example               # 環境變數範本檔
+├── env.example                # 環境變數範本檔
 ├── requirements.txt           # 專案依賴檔
 ├── README.md                  # 專案說明文件
-├── deploy_webhook.sh          # Cloud Function 部署腳本
+├── deploy_webhook.sh          # Cloud Function 部署腳本 (已修復)
 │
-├── webhook_receiver/          # Cloud Function #1: LINE Webhook 接收器
-│   ├── main.py               # Cloud Function 入口點 (支援混合模式)
+├── webhook_receiver/          # Cloud Function #1: LINE Webhook 接收器 ✅
+│   ├── main.py               # Cloud Function 入口點 (支援混合模式，已優化)
 │   ├── requirements.txt      # Cloud Function 依賴
 │   ├── .env.yaml            # Cloud Function 環境變數 (已加入 .gitignore)
-│   └── .env.yaml.example    # 環境變數範本
+│   └── env.yaml.example     # 環境變數範本 (已簡化)
 │
 ├── document_processor/        # Cloud Function #2: 文件處理器 (預留)
 │   └── main.py               # Document AI 處理主程式
 │
 ├── scripts/                   # 部署和設定腳本
-│   ├── gcp_config_safe.sh    # GCP 配置管理腳本
-│   └── gcp_config.example.sh # 配置範本
+│   ├── setup_env.py          # 環境變數管理工具 (已優化)
+│   └── manage.sh             # 部署管理腳本
 │
 └── local_test/               # 本地測試工具
     ├── test_webhook.py       # LINE Webhook 測試腳本
@@ -142,7 +144,14 @@ BUCKET_NAME="line-document-processor-your-project-id"
 
 # Webhook URL (本地開發時使用 ngrok)
 WEBHOOK_URL="https://your-ngrok-url.ngrok.io"
+
+# 應用程式設定
+DEBUG="True"
+LOG_LEVEL="INFO"
+ENVIRONMENT="local"
 ```
+
+**注意**：已移除不必要的用戶和群組 ID 設定，程式會自動從 LINE Webhook 事件中取得用戶資訊。
 
 ### 3. GCP 本地驗證
 
@@ -192,11 +201,11 @@ gcloud services enable storage.googleapis.com
 #### 2. 準備 Cloud Function 檔案
 
 ```bash
-# 為 webhook_receiver 建立 Cloud Function 專用檔案
-cd webhook_receiver
+# 使用環境變數管理工具 (推薦)
+python scripts/setup_env.py setup
 
-# 複製環境變數範本並填入實際值
-cp .env.yaml.example .env.yaml
+# 或手動複製環境變數範本
+cp webhook_receiver/env.yaml.example webhook_receiver/.env.yaml
 # 編輯 .env.yaml 填入您的 LINE Bot 設定
 ```
 
@@ -220,9 +229,10 @@ gcloud functions deploy line-webhook-receiver \
 
 ```bash
 # 取得 Cloud Function URL
-gcloud functions describe line-webhook-receiver --format="value(httpsTrigger.url)"
+gcloud functions describe line-webhook-receiver --region=asia-east1 --format="value(url)"
 
 # 將此 URL 設定到 LINE Developers Console 的 Webhook URL
+# 範例：https://asia-east1-annular-welder-684.cloudfunctions.net/line-webhook-receiver
 ```
 
 ### 階段 3: Document AI 整合 (規劃中)
@@ -307,8 +317,19 @@ gcloud functions deploy document-processor \
    - 檢查 Cloud Function 權限設定
 
 4. **檔案分類不正確**
+
    - 檢查檔案副檔名是否支援
    - 確認 `get_file_type()` 函數邏輯
+
+5. **部署腳本 Webhook URL 取得失敗**
+
+   - 確認使用正確的區域參數：`--region=asia-east1`
+   - 使用正確的格式參數：`--format="value(url)"`
+
+6. **環境變數設定問題**
+
+   - 使用 `python scripts/setup_env.py validate` 驗證設定
+   - 確認 `.env.yaml` 檔案格式正確
 
 ### 日誌查看
 
@@ -324,7 +345,13 @@ tail -f webhook_receiver/main.py
 
 ```bash
 # 測試 Cloud Function 健康狀態
-curl -X GET "https://us-central1-YOUR_PROJECT_ID.cloudfunctions.net/line-webhook-receiver"
+curl -X GET "https://asia-east1-YOUR_PROJECT_ID.cloudfunctions.net/line-webhook-receiver"
+
+# 預期回應
+{
+  "service": "line-webhook-receiver",
+  "status": "healthy"
+}
 ```
 
 ## 開發工具
@@ -333,10 +360,13 @@ curl -X GET "https://us-central1-YOUR_PROJECT_ID.cloudfunctions.net/line-webhook
 
 ```bash
 # 啟動 ngrok 隧道
-ngrok http 5000
+ngrok http 8080
 
 # 更新 Webhook URL
 sed -i '' 's|WEBHOOK_URL=.*|WEBHOOK_URL="https://your-ngrok-url.ngrok.io"|' .env.local
+
+# 驗證環境變數設定
+python scripts/setup_env.py validate
 ```
 
 ### GCP 配置管理
